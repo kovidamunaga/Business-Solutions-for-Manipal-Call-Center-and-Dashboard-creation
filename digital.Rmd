@@ -1,0 +1,199 @@
+---
+title: "DM case study"
+author: "kovida"
+date: "5 May 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+revenue=read.csv("C://Users//Administrator//Documents//DV//DV- Case Study//final_revenue.csv")
+
+source_admission=read.csv("C://Users//Administrator//Documents//DV//DV- Case Study//Source_wise_Addmission_1.csv")
+
+month_leads=read.csv("C://Users//Administrator//Documents//DV//DV- Case Study//leads.csv")
+library(dplyr)
+
+lead_count=read.csv("C://Users//Administrator//Documents//DV//DV- Case Study//Source_wise_lead.csv")
+View(lead_count)
+# left inner join
+#final_source = merge(admissions,leads, by.x = "Source.Name", by.y = "Source.Bucket")
+
+source=read.csv("C://Users//Administrator//Documents//DV//DV- Case Study//final_source.csv")
+colnames(source)
+```
+
+
+```{r}
+View(month_leads)
+View(revenue)
+View(source)
+
+```
+
+### month leads have all candidate details who searched for particular course through some source and 
+###  revenue has got all the candidates who has actually enrolled for the course but dont have source column so we matched the mail columns of both files and extracted matched ones and merged with leads to see which source is revenue coming from
+
+```{r}
+nrow(month_leads)
+nrow(revenue)
+```
+
+### revenue from email match
+
+```{r}
+revenue_email=revenue%>%select(Order.Email,Order.Total)
+
+
+revenue_email$Order.Email=as.character(revenue_email$Order.Email)
+
+```
+
+```{r}
+leads_email=month_leads%>%select(Email,UTM.Source)
+
+leads_email$Email=as.character(leads_email$Email)
+
+
+
+```
+
+
+
+
+```{r}
+revenue_email$match= revenue_email$Order.Email %in% leads_email$Email
+
+```
+
+```{r}
+revenue_email=revenue_email%>%filter(match==TRUE)
+revenue_email
+
+```
+
+
+```{r}
+month_l1=month_leads%>%select(Email,UTM.Source)
+month_l2=merge(revenue_email, month_l1, by.x = 'Order.Email', by.y = 'Email')
+
+unique(month_l1$UTM.Source)
+
+```
+
+
+### Identify the marketing source giving you the best result
+## revenue and lead.count plot
+- Which channels are driving for increase in revenue and leads will be the best marketing source
+```{r}
+final_revenue=month_l2%>%group_by(UTM.Source)%>%summarise(Revenue=sum(Order.Total))
+
+final_revenue$UTM.Source=toupper(final_revenue$UTM.Source)
+
+
+```
+
+
+```{r}
+unique(lead_count)
+```
+
+```{r}
+final_leadc=lead_count %>% filter(!Source.Bucket %in% c("esperto","Source Not Available","Null","Publisher"," Adcano","Others"))
+
+final_leadc$Source.Bucket=toupper(final_leadc$Source.Bucket)
+
+
+final=merge(final_leadc,final_revenue,by.x = 'Source.Bucket',by.y = 'UTM.Source')
+
+final3=source%>%select(Enroll_count,UTM.Source)
+
+
+
+
+
+
+```
+
+```{r}
+library(ggplot2)
+
+chart1=ggplot(final,aes(x=Lead.count,y=Revenue))+geom_jitter(aes(col=
+Source.Bucket,size=Revenue))
+
+library(plotly)
+
+ggplotly(chart1)
+
+
+```
+
+### strategy one
+```{r}
+course1=revenue%>%group_by(Course.Title)%>%filter(Currency.Code=="USD")%>%summarise(course_revenue=sum(Amount)*68/length(unique(Student.Name)))
+
+course2=revenue%>%group_by(Course.Title)%>%filter(Currency.Code=="INR")%>%summarise(course_revenue=sum(Amount)/length(unique(Student.Name)))
+
+c=revenue%>%filter(Currency.Code=="INR",Course.Title %in% unique(Course.Title))%>%arrange(-Amount)%>%select(Course.Title,Amount)
+
+
+#c%>%distinct(Course.Title)
+
+coursef=rbind(course1,course2)
+
+
+coursef%>%arrange(-course_revenue)
+
+##############################################
+course11=revenue%>%group_by(Course.Title,Month)%>%filter(Currency.Code=="USD")%>%summarise(course_revenue=sum(Amount)*68)
+
+course21=revenue%>%group_by(Course.Title,Month)%>%filter(Currency.Code=="INR")%>%summarise(course_revenue=sum(Amount))
+
+course_ff= coursef=rbind(course11,course21)
+
+course_ff%>%arrange(-course_revenue)
+
+
+library(ggplot2)
+
+chart1=course_ff%>%filter(Month=="April")%>%arrange(-course_revenue)%>%tail(20)%>%ggplot(aes(x=Course.Title,y = course_revenue))+geom_bar(stat="Identity",aes(fill=Month))+coord_flip()
+
+chart2=course_ff%>%filter(Month=="April")%>%arrange(-course_revenue)%>%head(20)%>%ggplot(aes(x=Course.Title,y = course_revenue))+geom_bar(stat="Identity",aes(fill=Month))+coord_flip()
+
+library(gridExtra)
+grid.arrange(chart1,chart2)
+
+
+
+course_ff%>%filter(Month=="April")%>%arrange(-course_revenue)%>%ggplot(aes(x=Course.Title,y = course_revenue))+geom_bar(stat="Identity",aes(fill=Month))
+
+
+unique(coursef$Course.Title)
+```
+
+### monthwise growth of product and in which product  students are showing more intrest
+
+```{r}
+month_leads%>%group_by(Month,Course)%>%filter(Status=="Interested/Follow Up","Already Applied ",)%>%summarise(count=n())
+
+
+```
+
+```{r}
+unique(month_leads$Status)
+```
+
+```{r}
+revenue%>%group_by(Course.Title)%>%filter(Course.Title=="PG Diploma in Data Science (Full-time)")%>%summarise(enroll_count=n())
+```
+
+
+
+
+```{r}
+library(ggplot2)
+revenue%>%group_by(Course.Title)%>%summarise(enroll_count=n())%>%arrange(-enroll_count)%>%head(10)%>%ggplot(aes(x=reorder(Course.Title,enroll_count),y=enroll_count,fill=Course.Title))+geom_bar(stat = "Identity")+theme(axis.text.x = element_blank())+xlab
+
+``` 
+
