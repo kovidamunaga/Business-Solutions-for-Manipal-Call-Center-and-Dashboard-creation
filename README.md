@@ -14,3 +14,5 @@ Case 1: Identify the marketing source giving you the best result.
 Case 2: Which product you should focus more?
 Case 3: Your strategy for work force.
 Case 4: Your overall strategy towards call centre.
+
+[This link Directs you to the Dashboard](https://visualinsights.shinyapps.io/Visual_strategy_for_manipal_prolearn/)
